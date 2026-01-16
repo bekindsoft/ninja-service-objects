@@ -1,6 +1,8 @@
 # Django Ninja Service Objects
 
-Service objects for Django Ninja using Pydantic validation. Encapsulate your business logic in reusable, testable service classes.
+An implementation of the [django-service-objects](https://django-service-objects.readthedocs.io/en/latest/pages/philosophy.html) philosophy for Django Ninja with Pydantic validation.
+
+Encapsulate your business logic in reusable, testable service classes.
 
 ## Installation
 
@@ -22,10 +24,10 @@ INSTALLED_APPS = [
 ## Usage
 
 ```python
-from pydantic import BaseModel
+from ninja import Schema
 from ninja_service_objects import Service
 
-class CreateUserInput(BaseModel):
+class CreateUserInput(Schema):
     email: str
     name: str
 
@@ -52,6 +54,34 @@ user = CreateUserService.execute({"email": "test@example.com", "name": "Test"})
 - Automatic database transaction handling
 - `post_process` hook for side effects (runs after commit)
 - Type-safe with generics support
+
+## Design Decisions
+
+### Why Pydantic instead of Django Forms?
+
+The original django-service-objects uses Django Forms for validation. Since Django Ninja already uses Pydantic for request/response schemas, this library uses Pydantic to:
+
+- Avoid mixing two validation systems in the same project
+- Reuse your existing Django Ninja schemas as service inputs
+- Get better type hints and IDE support
+
+### API Compatibility
+
+We maintain familiar patterns from django-service-objects:
+
+- `cleaned_data` - Access validated input data (same naming as Django forms/original library)
+- `process()` - Override this with your business logic
+- `post_process()` - Runs after successful transaction commit (for emails, notifications, etc.)
+- `execute()` - Class method entry point that handles validation and transactions
+
+### What's Different
+
+| django-service-objects | ninja-service-objects |
+|------------------------|----------------------|
+| Django Forms validation | Pydantic validation |
+| `service_clean()` method | Pydantic validators |
+| Form fields | Pydantic BaseModel |
+| `is_valid()` + `execute()` | Single `execute()` call |
 
 ## Configuration
 
