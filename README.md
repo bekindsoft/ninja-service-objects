@@ -48,6 +48,42 @@ class CreateUserService(Service[CreateUserInput, User]):
 user = CreateUserService.execute({"email": "test@example.com", "name": "Test"})
 ```
 
+### Using Pydantic BaseModel with Custom Validators
+
+You can also use Pydantic's BaseModel directly for more complex validation:
+
+```python
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from ninja_service_objects import Service
+
+class RegisterUserInput(BaseModel):
+    email: EmailStr
+    password: str
+    password_confirm: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "RegisterUserInput":
+        if self.password != self.password_confirm:
+            raise ValueError("Passwords do not match")
+        return self
+
+class RegisterUserService(Service[RegisterUserInput, User]):
+    schema = RegisterUserInput
+
+    def process(self) -> User:
+        return User.objects.create_user(
+            email=self.cleaned_data.email,
+            password=self.cleaned_data.password,
+        )
+```
+
 ## Features
 
 - Pydantic validation for inputs
