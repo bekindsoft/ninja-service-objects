@@ -8,10 +8,10 @@ from pydantic import BaseModel, ValidationError
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
 
-class BasePydanticService(ABC, Generic[SchemaT, ReturnT]):
+class Service(ABC, Generic[SchemaT, ReturnT]):
     """
     An abstract base class for services using Pydantic for validation.
-    Mirrors the lifecycle of django-service-objects.
+    Encapsulates business logic with automatic validation and transaction handling.
     """
     schema: Type[SchemaT]
     db_transaction: bool = True
