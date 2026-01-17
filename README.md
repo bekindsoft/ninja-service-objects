@@ -7,7 +7,7 @@ Encapsulate your business logic in reusable, testable service classes.
 ## Installation
 
 ```bash
-pip install git+https://github.com/bekindsoft/ninja-service-objects.git
+pip install django-ninja-service-objects
 ```
 
 Add to your Django settings:
