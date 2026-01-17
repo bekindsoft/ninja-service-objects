@@ -1,4 +1,4 @@
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from django.db import models
 from pydantic import GetCoreSchemaHandler
@@ -8,11 +8,11 @@ ModelT = TypeVar("ModelT", bound=models.Model)
 
 
 def _resolve_model_class(
-    model_class: Optional[Type[models.Model]],
+    model_class: type[models.Model] | None,
     source_type: Any,
     field_name: str,
     extract_from_list: bool = False,
-) -> Type[models.Model]:
+) -> type[models.Model]:
     """Resolve and validate the model class from either explicit or source type."""
     resolved = model_class or source_type
 
@@ -41,16 +41,14 @@ def _resolve_model_class(
             )
 
     if not isinstance(resolved, type) or not issubclass(resolved, models.Model):
-        raise TypeError(
-            f"{field_name} requires a Django Model class, got: {resolved}"
-        )
+        raise TypeError(f"{field_name} requires a Django Model class, got: {resolved}")
 
     return resolved
 
 
 def _validate_model_instance(
     value: Any,
-    model_class: Type[models.Model],
+    model_class: type[models.Model],
     allow_unsaved: bool = False,
 ) -> models.Model:
     """Validate that a value is an instance of the specified Django model."""
@@ -67,18 +65,20 @@ def _validate_model_instance(
 
 def _validate_model_iterable(
     value: Any,
-    model_class: Type[models.Model],
+    model_class: type[models.Model],
     allow_unsaved: bool = False,
-) -> List[models.Model]:
+) -> list[models.Model]:
     """Validate that a value is an iterable of Django model instances."""
     if isinstance(value, (str, bytes)):
         raise ValueError(
-            f"Expected a list of {model_class.__name__} instances, got {type(value).__name__}"
+            f"Expected a list of {model_class.__name__} instances, "
+            f"got {type(value).__name__}"
         )
 
     if not hasattr(value, "__iter__"):
         raise ValueError(
-            f"Expected a list of {model_class.__name__} instances, got {type(value).__name__}"
+            f"Expected a list of {model_class.__name__} instances, "
+            f"got {type(value).__name__}"
         )
 
     result = []
@@ -105,22 +105,20 @@ class ModelField(Generic[ModelT]):
 
     def __init__(
         self,
-        model_class: Optional[Type[ModelT]] = None,
+        model_class: type[ModelT] | None = None,
         allow_unsaved: bool = False,
     ):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 
-    def __class_getitem__(cls, model_class: Type[ModelT]) -> Any:
+    def __class_getitem__(cls, model_class: type[ModelT]) -> Any:
         """Support ModelField[User] syntax."""
         return _ModelFieldAnnotation(model_class=model_class, allow_unsaved=False)
 
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        model_class = _resolve_model_class(
-            self.model_class, source_type, "ModelField"
-        )
+        model_class = _resolve_model_class(self.model_class, source_type, "ModelField")
         allow_unsaved = self.allow_unsaved
 
         return core_schema.no_info_plain_validator_function(
@@ -131,16 +129,14 @@ class ModelField(Generic[ModelT]):
 class _ModelFieldAnnotation:
     """Internal class to handle ModelField[Model] generic syntax."""
 
-    def __init__(self, model_class: Type[models.Model], allow_unsaved: bool = False):
+    def __init__(self, model_class: type[models.Model], allow_unsaved: bool = False):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        model_class = _resolve_model_class(
-            self.model_class, source_type, "ModelField"
-        )
+        model_class = _resolve_model_class(self.model_class, source_type, "ModelField")
         allow_unsaved = self.allow_unsaved
 
         return core_schema.no_info_plain_validator_function(
@@ -156,20 +152,22 @@ class MultipleModelField(Generic[ModelT]):
         class MyInput(BaseModel):
             users: MultipleModelField[User]
             # or with options:
-            users: Annotated[List[User], MultipleModelField(allow_unsaved=True)]
+            users: Annotated[list[User], MultipleModelField(allow_unsaved=True)]
     """
 
     def __init__(
         self,
-        model_class: Optional[Type[ModelT]] = None,
+        model_class: type[ModelT] | None = None,
         allow_unsaved: bool = False,
     ):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 
-    def __class_getitem__(cls, model_class: Type[ModelT]) -> Any:
+    def __class_getitem__(cls, model_class: type[ModelT]) -> Any:
         """Support MultipleModelField[User] syntax."""
-        return _MultipleModelFieldAnnotation(model_class=model_class, allow_unsaved=False)
+        return _MultipleModelFieldAnnotation(
+            model_class=model_class, allow_unsaved=False
+        )
 
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
@@ -187,7 +185,7 @@ class MultipleModelField(Generic[ModelT]):
 class _MultipleModelFieldAnnotation:
     """Internal class to handle MultipleModelField[Model] generic syntax."""
 
-    def __init__(self, model_class: Type[models.Model], allow_unsaved: bool = False):
+    def __init__(self, model_class: type[models.Model], allow_unsaved: bool = False):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 

@@ -122,10 +122,10 @@ class TestMultipleModelField:
 
     def test_allow_unsaved_option(self):
         """MultipleModelField with allow_unsaved=True accepts unsaved instances."""
-        from typing import Annotated, List
+        from typing import Annotated
 
         class AllowUnsavedInput(BaseModel):
-            users: Annotated[List[User], MultipleModelField(allow_unsaved=True)]
+            users: Annotated[list[User], MultipleModelField(allow_unsaved=True)]
 
         user1 = User(username="unsaved1")
         user2 = User(username="unsaved2")
