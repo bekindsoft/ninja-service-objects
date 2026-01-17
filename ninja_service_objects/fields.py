@@ -22,17 +22,17 @@ def _resolve_model_class(
             f"Use {field_name}[ModelClass] or Annotated[ModelClass, {field_name}()]"
         )
 
-    # Handle generic types like List[User], Optional[User], etc.
+    # Handle generic types like list[User], Optional[User], etc.
     origin = getattr(resolved, "__origin__", None)
     if origin is not None:
         if extract_from_list and origin is list:
-            # Extract the inner type from List[Model]
+            # Extract the inner type from list[Model]
             args = getattr(resolved, "__args__", ())
             if args:
                 resolved = args[0]
             else:
                 raise TypeError(
-                    f"{field_name} requires a typed List, e.g., List[ModelClass]"
+                    f"{field_name} requires a typed list, e.g., list[ModelClass]"
                 )
         else:
             raise TypeError(
