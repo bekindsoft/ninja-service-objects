@@ -1,10 +1,95 @@
-from typing import Any, Generic, List, Optional, Type, TypeVar, Union
+from typing import Any, Generic, List, Optional, Type, TypeVar
 
 from django.db import models
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
 ModelT = TypeVar("ModelT", bound=models.Model)
+
+
+def _resolve_model_class(
+    model_class: Optional[Type[models.Model]],
+    source_type: Any,
+    field_name: str,
+    extract_from_list: bool = False,
+) -> Type[models.Model]:
+    """Resolve and validate the model class from either explicit or source type."""
+    resolved = model_class or source_type
+
+    if resolved is None:
+        raise TypeError(
+            f"{field_name} requires a model class. "
+            f"Use {field_name}[ModelClass] or Annotated[ModelClass, {field_name}()]"
+        )
+
+    # Handle generic types like List[User], Optional[User], etc.
+    origin = getattr(resolved, "__origin__", None)
+    if origin is not None:
+        if extract_from_list and origin is list:
+            # Extract the inner type from List[Model]
+            args = getattr(resolved, "__args__", ())
+            if args:
+                resolved = args[0]
+            else:
+                raise TypeError(
+                    f"{field_name} requires a typed List, e.g., List[ModelClass]"
+                )
+        else:
+            raise TypeError(
+                f"{field_name} does not support generic types like Optional or Union. "
+                f"Got: {resolved}"
+            )
+
+    if not isinstance(resolved, type) or not issubclass(resolved, models.Model):
+        raise TypeError(
+            f"{field_name} requires a Django Model class, got: {resolved}"
+        )
+
+    return resolved
+
+
+def _validate_model_instance(
+    value: Any,
+    model_class: Type[models.Model],
+    allow_unsaved: bool = False,
+) -> models.Model:
+    """Validate that a value is an instance of the specified Django model."""
+    if not isinstance(value, model_class):
+        raise ValueError(
+            f"Expected instance of {model_class.__name__}, got {type(value).__name__}"
+        )
+
+    if not allow_unsaved and value.pk is None:
+        raise ValueError("Unsaved model instances are not allowed")
+
+    return value
+
+
+def _validate_model_iterable(
+    value: Any,
+    model_class: Type[models.Model],
+    allow_unsaved: bool = False,
+) -> List[models.Model]:
+    """Validate that a value is an iterable of Django model instances."""
+    if isinstance(value, (str, bytes)):
+        raise ValueError(
+            f"Expected a list of {model_class.__name__} instances, got {type(value).__name__}"
+        )
+
+    if not hasattr(value, "__iter__"):
+        raise ValueError(
+            f"Expected a list of {model_class.__name__} instances, got {type(value).__name__}"
+        )
+
+    result = []
+    for i, item in enumerate(value):
+        try:
+            validated = _validate_model_instance(item, model_class, allow_unsaved)
+            result.append(validated)
+        except ValueError as e:
+            raise ValueError(f"Item {i}: {e}") from None
+
+    return result
 
 
 class ModelField(Generic[ModelT]):
@@ -26,17 +111,6 @@ class ModelField(Generic[ModelT]):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 
-    def _validate(self, value: Any, model_class: Type[ModelT]) -> ModelT:
-        if not isinstance(value, model_class):
-            raise ValueError(
-                f"Expected instance of {model_class.__name__}, got {type(value).__name__}"
-            )
-
-        if not self.allow_unsaved and value.pk is None:
-            raise ValueError("Unsaved model instances are not allowed")
-
-        return value
-
     def __class_getitem__(cls, model_class: Type[ModelT]) -> Any:
         """Support ModelField[User] syntax."""
         return _ModelFieldAnnotation(model_class=model_class, allow_unsaved=False)
@@ -44,8 +118,13 @@ class ModelField(Generic[ModelT]):
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
+        model_class = _resolve_model_class(
+            self.model_class, source_type, "ModelField"
+        )
+        allow_unsaved = self.allow_unsaved
+
         return core_schema.no_info_plain_validator_function(
-            lambda v: self._validate(v, self.model_class or source_type),
+            lambda v: _validate_model_instance(v, model_class, allow_unsaved),
         )
 
 
@@ -59,17 +138,14 @@ class _ModelFieldAnnotation:
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        def validate(value: Any) -> models.Model:
-            if not isinstance(value, self.model_class):
-                raise ValueError(
-                    f"Expected instance of {self.model_class.__name__}, "
-                    f"got {type(value).__name__}"
-                )
-            if not self.allow_unsaved and value.pk is None:
-                raise ValueError("Unsaved model instances are not allowed")
-            return value
+        model_class = _resolve_model_class(
+            self.model_class, source_type, "ModelField"
+        )
+        allow_unsaved = self.allow_unsaved
 
-        return core_schema.no_info_plain_validator_function(validate)
+        return core_schema.no_info_plain_validator_function(
+            lambda v: _validate_model_instance(v, model_class, allow_unsaved),
+        )
 
 
 class MultipleModelField(Generic[ModelT]):
@@ -91,23 +167,6 @@ class MultipleModelField(Generic[ModelT]):
         self.model_class = model_class
         self.allow_unsaved = allow_unsaved
 
-    def _validate(self, value: Any, model_class: Type[ModelT]) -> List[ModelT]:
-        if not hasattr(value, "__iter__"):
-            raise ValueError("Expected an iterable of model instances")
-
-        result = []
-        for i, item in enumerate(value):
-            if not isinstance(item, model_class):
-                raise ValueError(
-                    f"Item {i}: Expected instance of {model_class.__name__}, "
-                    f"got {type(item).__name__}"
-                )
-            if not self.allow_unsaved and item.pk is None:
-                raise ValueError(f"Item {i}: Unsaved model instances are not allowed")
-            result.append(item)
-
-        return result
-
     def __class_getitem__(cls, model_class: Type[ModelT]) -> Any:
         """Support MultipleModelField[User] syntax."""
         return _MultipleModelFieldAnnotation(model_class=model_class, allow_unsaved=False)
@@ -115,8 +174,13 @@ class MultipleModelField(Generic[ModelT]):
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
+        model_class = _resolve_model_class(
+            self.model_class, source_type, "MultipleModelField", extract_from_list=True
+        )
+        allow_unsaved = self.allow_unsaved
+
         return core_schema.no_info_plain_validator_function(
-            lambda v: self._validate(v, self.model_class or source_type),
+            lambda v: _validate_model_iterable(v, model_class, allow_unsaved),
         )
 
 
@@ -130,23 +194,11 @@ class _MultipleModelFieldAnnotation:
     def __get_pydantic_core_schema__(
         self, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        def validate(value: Any) -> List[models.Model]:
-            if not hasattr(value, "__iter__"):
-                raise ValueError("Expected an iterable of model instances")
+        model_class = _resolve_model_class(
+            self.model_class, source_type, "MultipleModelField", extract_from_list=True
+        )
+        allow_unsaved = self.allow_unsaved
 
-            result = []
-            for i, item in enumerate(value):
-                if not isinstance(item, self.model_class):
-                    raise ValueError(
-                        f"Item {i}: Expected instance of {self.model_class.__name__}, "
-                        f"got {type(item).__name__}"
-                    )
-                if not self.allow_unsaved and item.pk is None:
-                    raise ValueError(
-                        f"Item {i}: Unsaved model instances are not allowed"
-                    )
-                result.append(item)
-
-            return result
-
-        return core_schema.no_info_plain_validator_function(validate)
+        return core_schema.no_info_plain_validator_function(
+            lambda v: _validate_model_iterable(v, model_class, allow_unsaved),
+        )
