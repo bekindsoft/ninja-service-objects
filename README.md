@@ -7,7 +7,7 @@ Encapsulate your business logic in reusable, testable service classes.
 ## Installation
 
 ```bash
-pip install git+https://github.com/bekindsoft/ninja-service-objects.git
+pip install django-ninja-service-objects
 ```
 
 Add to your Django settings:
@@ -84,12 +84,45 @@ class RegisterUserService(Service[RegisterUserInput, User]):
         )
 ```
 
+### Using ModelField for Django Model Instances
+
+Use `ModelField` and `MultipleModelField` to validate Django model instances as service inputs:
+
+```python
+from pydantic import BaseModel
+from ninja_service_objects import Service, ModelField, MultipleModelField
+
+class TransferOwnershipInput(BaseModel):
+    from_user: ModelField[User]
+    to_user: ModelField[User]
+    posts: MultipleModelField[Post]
+
+class TransferOwnershipService(Service[TransferOwnershipInput, None]):
+    schema = TransferOwnershipInput
+
+    def process(self) -> None:
+        for post in self.cleaned_data.posts:
+            post.author = self.cleaned_data.to_user
+            post.save()
+```
+
+By default, `ModelField` rejects unsaved model instances (objects without a primary key). To allow unsaved instances:
+
+```python
+from typing import Annotated
+
+class MyInput(BaseModel):
+    user: Annotated[User, ModelField(allow_unsaved=True)]
+    items: Annotated[list[Item], MultipleModelField(allow_unsaved=True)]
+```
+
 ## Features
 
 - Pydantic validation for inputs
 - Automatic database transaction handling
 - `post_process` hook for side effects (runs after commit)
 - Type-safe with generics support
+- `ModelField` and `MultipleModelField` for Django model instance validation
 
 ## Design Decisions
 

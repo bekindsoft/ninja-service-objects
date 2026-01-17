@@ -1,19 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
-from django.db import transaction, DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, transaction
 from pydantic import BaseModel, ValidationError
 
 # Define TypeVars for type-hinting the Schema and the Return type
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 ReturnT = TypeVar("ReturnT")
 
+
 class Service(ABC, Generic[SchemaT, ReturnT]):
     """
     An abstract base class for services using Pydantic for validation.
     Encapsulates business logic with automatic validation and transaction handling.
     """
-    schema: Type[SchemaT]
+
+    schema: type[SchemaT]
     db_transaction: bool = True
     using: str = DEFAULT_DB_ALIAS
 
@@ -22,7 +24,7 @@ class Service(ABC, Generic[SchemaT, ReturnT]):
         self.kwargs = kwargs
 
     @classmethod
-    def execute(cls, inputs: Dict[str, Any], **kwargs: Any) -> ReturnT:
+    def execute(cls, inputs: dict[str, Any], **kwargs: Any) -> ReturnT:
         """
         The entry point to the service. Validates inputs and executes logic
         within a transaction context.

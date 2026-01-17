@@ -8,14 +8,13 @@ version = "0.1.0"
 description = "Service objects for Django Ninja using Pydantic validation"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "Hans Ramírez", email = "monkey@bekind.software" }]
 keywords = ["django", "ninja", "service-objects", "pydantic", "business-logic"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
     "Framework :: Django",
-    "Framework :: Django :: 4.0",
     "Framework :: Django :: 4.1",
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
@@ -23,7 +22,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -39,23 +37,22 @@ Repository = "https://github.com/bekindsoft/ninja-service-objects"
 Issues = "https://github.com/bekindsoft/ninja-service-objects/issues"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-django>=4.5",
-    "ruff>=0.8.0",
-    "mypy>=1.0",
-]
+dev = ["pytest>=7.0", "pytest-django>=4.5", "ruff>=0.8.0", "mypy>=1.0"]
 
 [tool.setuptools.packages.find]
 include = ["ninja_service_objects*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = ["."]
