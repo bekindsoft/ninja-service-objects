@@ -113,7 +113,7 @@ from typing import Annotated
 
 class MyInput(BaseModel):
     user: Annotated[User, ModelField(allow_unsaved=True)]
-    items: Annotated[List[Item], MultipleModelField(allow_unsaved=True)]
+    items: Annotated[list[Item], MultipleModelField(allow_unsaved=True)]
 ```
 
 ## Features
