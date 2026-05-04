@@ -14,22 +14,24 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          uv sync --group dev
 
       - name: Run linter
         run: |
-          ruff check ninja_service_objects tests
-          ruff format --check ninja_service_objects tests
+          uv run ruff check ninja_service_objects tests
+          uv run ruff format --check ninja_service_objects tests
 
       - name: Run tests
-        run: pytest tests -v
+        run: uv run pytest tests -v
