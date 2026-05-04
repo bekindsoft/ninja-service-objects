@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "django-ninja-service-objects"
 version = "0.1.2"
-requires-python = "~=3.11.0"
+requires-python = ">=3.10"
 description = "Service objects for Django Ninja using Pydantic validation"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,6 +24,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
