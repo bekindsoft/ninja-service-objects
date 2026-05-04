@@ -48,6 +48,38 @@ class CreateUserService(Service[CreateUserInput, User]):
 user = CreateUserService.execute({"email": "test@example.com", "name": "Test"})
 ```
 
+### Decorator-Based Services
+
+For smaller operations, use `service_object` to get the same validation and
+transaction handling without defining a service class:
+
+```python
+from ninja import Schema
+from ninja_service_objects import service_object
+
+class CreateUserInput(Schema):
+    email: str
+    name: str
+
+def send_welcome_email_after_commit(user: User) -> None:
+    send_welcome_email(user.email)
+
+@service_object(post_process=send_welcome_email_after_commit)
+def create_user(data: CreateUserInput) -> User:
+    return User.objects.create(
+        email=data.email,
+        name=data.name,
+    )
+
+user = create_user({"email": "test@example.com", "name": "Test"})
+```
+
+The decorator validates any function argument annotated with a Pydantic model
+or Ninja schema. Use `db_transaction=False` to disable the transaction wrapper,
+`using="other_db"` to select a database alias, or `post_process=callback` to run
+a side effect after a successful commit. The callback receives the service
+function result.
+
 ### Using Pydantic BaseModel with Custom Validators
 
 You can also use Pydantic's BaseModel directly for more complex validation:
@@ -121,6 +153,7 @@ class MyInput(BaseModel):
 - Pydantic validation for inputs
 - Automatic database transaction handling
 - `post_process` hook for side effects (runs after commit)
+- Decorator-based services for lightweight operations
 - Type-safe with generics support
 - `ModelField` and `MultipleModelField` for Django model instance validation
 
