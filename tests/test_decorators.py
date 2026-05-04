@@ -3,7 +3,7 @@ from typing import Annotated
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from ninja_service_objects import post_process, service, service_object
+from ninja_service_objects import service, service_object
 
 
 class CreateInput(BaseModel):
@@ -124,83 +124,6 @@ def test_service_alias_uses_transaction_and_runs_post_process_on_commit(monkeypa
     callbacks[0]()
 
     assert processed == ["widget"]
-
-
-def test_post_process_decorator_runs_after_success_without_transaction():
-    processed = []
-
-    @service_object(db_transaction=False)
-    @post_process(processed.append)
-    def build(data: CreateInput) -> str:
-        return data.name
-
-    result = build({"name": "widget"})
-
-    assert result == "widget"
-    assert processed == ["widget"]
-
-
-def test_post_process_decorator_can_wrap_service_object():
-    processed = []
-
-    @post_process(processed.append)
-    @service_object(db_transaction=False)
-    def build(data: CreateInput) -> str:
-        return data.name
-
-    result = build({"name": "widget"})
-
-    assert result == "widget"
-    assert processed == ["widget"]
-
-
-def test_post_process_decorator_uses_transaction_on_commit(monkeypatch):
-    callbacks = []
-    processed = []
-
-    class Atomic:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, traceback):
-            return False
-
-    monkeypatch.setattr(
-        "ninja_service_objects.decorators.transaction.atomic",
-        lambda using: Atomic(),
-    )
-    monkeypatch.setattr(
-        "ninja_service_objects.decorators.transaction.on_commit",
-        callbacks.append,
-    )
-
-    @service_object
-    @post_process(processed.append)
-    def build(data: CreateInput) -> str:
-        return data.name
-
-    result = build({"name": "widget"})
-
-    assert result == "widget"
-    assert processed == []
-
-    callbacks[0]()
-
-    assert processed == ["widget"]
-
-
-def test_post_process_decorator_does_not_run_after_process_error():
-    processed = []
-
-    @service_object(db_transaction=False)
-    @post_process(processed.append)
-    def fail(data: CreateInput) -> str:
-        raise RuntimeError(data.name)
-
-    with pytest.raises(RuntimeError):
-        fail({"name": "widget"})
-
-    assert processed == []
 
 
 def test_service_object_without_transaction_runs_post_process_immediately(monkeypatch):

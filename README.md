@@ -55,17 +55,16 @@ transaction handling without defining a service class:
 
 ```python
 from ninja import Schema
-from ninja_service_objects import post_process, service_object
+from ninja_service_objects import service_object
 
 class CreateUserInput(Schema):
     email: str
     name: str
 
-def send_welcome_email(user: User) -> None:
+def send_welcome_email_after_commit(user: User) -> None:
     send_welcome_email(user.email)
 
-@service_object
-@post_process(send_welcome_email)
+@service_object(post_process=send_welcome_email_after_commit)
 def create_user(data: CreateUserInput) -> User:
     return User.objects.create(
         email=data.email,
@@ -77,8 +76,8 @@ user = create_user({"email": "test@example.com", "name": "Test"})
 
 The decorator validates any function argument annotated with a Pydantic model
 or Ninja schema. Use `db_transaction=False` to disable the transaction wrapper,
-`using="other_db"` to select a database alias, or `@post_process(callback)` to
-run a side effect after a successful commit. The callback receives the service
+`using="other_db"` to select a database alias, or `post_process=callback` to run
+a side effect after a successful commit. The callback receives the service
 function result.
 
 ### Using Pydantic BaseModel with Custom Validators

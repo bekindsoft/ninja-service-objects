@@ -11,26 +11,6 @@ FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 PostProcess = Callable[[Any], None]
 
 _NONE_TYPE = type(None)
-_POST_PROCESS_ATTR = "__ninja_service_objects_post_process_callbacks__"
-
-
-def _get_post_process_callbacks(func: Callable[..., Any]) -> tuple[PostProcess, ...]:
-    return tuple(getattr(func, _POST_PROCESS_ATTR, ()))
-
-
-def _set_post_process_callbacks(
-    func: Callable[..., Any],
-    callbacks: tuple[PostProcess, ...],
-) -> None:
-    setattr(func, _POST_PROCESS_ATTR, callbacks)
-
-
-def _run_post_process_callbacks(
-    callbacks: tuple[PostProcess, ...],
-    result: Any,
-) -> None:
-    for callback in callbacks:
-        callback(result)
 
 
 def _get_schema_model(annotation: Any) -> tuple[type[BaseModel], bool] | None:
@@ -126,9 +106,6 @@ def service_object(
 
     def decorator(inner: FuncT) -> FuncT:
         call_signature = signature(inner)
-        callbacks = _get_post_process_callbacks(inner)
-        if post_process is not None:
-            callbacks = (*callbacks, post_process)
 
         @wraps(inner)
         def wrapped(*args: Any, **kwargs: Any) -> Any:
@@ -140,41 +117,23 @@ def service_object(
             if db_transaction:
                 with transaction.atomic(using=using):
                     result = inner(*bound_arguments.args, **bound_arguments.kwargs)
-                    callbacks = _get_post_process_callbacks(wrapped)
-                    if callbacks:
+                    if post_process is not None:
                         transaction.on_commit(
-                            lambda callbacks=callbacks, result=result: (
-                                _run_post_process_callbacks(callbacks, result)
-                            )
+                            lambda result=result: post_process(result)
                         )
                     return result
 
             result = inner(*bound_arguments.args, **bound_arguments.kwargs)
-            callbacks = _get_post_process_callbacks(wrapped)
-            if callbacks:
-                _run_post_process_callbacks(callbacks, result)
+            if post_process is not None:
+                post_process(result)
             return result
 
-        _set_post_process_callbacks(wrapped, callbacks)
         return cast(FuncT, wrapped)
 
     if func is None:
         return decorator
 
     return decorator(func)
-
-
-def post_process(callback: PostProcess) -> Callable[[FuncT], FuncT]:
-    """Register a callback to run after a decorated service function succeeds."""
-
-    def decorator(func: FuncT) -> FuncT:
-        print("decorator called with func:", func)
-        callbacks = (*_get_post_process_callbacks(func), callback)
-        print("setting callbacks:", callbacks)
-        _set_post_process_callbacks(func, callbacks)
-        return func
-
-    return decorator
 
 
 service = service_object
