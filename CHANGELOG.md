@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/bekindsoft/ninja-service-objects/compare/django-ninja-service-objects-v0.1.2...django-ninja-service-objects-v0.1.3) (2026-05-04)
+
+
+### Features
+
+* support service object decorators ([#6](https://github.com/bekindsoft/ninja-service-objects/issues/6)) ([71502e3](https://github.com/bekindsoft/ninja-service-objects/commit/71502e3de05d26ff03210e320a6a3cb213b91008))
+
 ## [0.1.2](https://github.com/bekindsoft/ninja-service-objects/compare/django-ninja-service-objects-v0.1.1...django-ninja-service-objects-v0.1.2) (2026-01-17)
 
 
