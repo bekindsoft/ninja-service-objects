@@ -106,9 +106,7 @@ def service_object(
     Args:
         func: The function to decorate. Optional when using as a decorator factory.
         db_transaction: Whether to wrap the function in a database transaction.
-        using: The database alias to use for the transaction. When set
-            to a non-default alias, transactions will be enabled regardless of the value
-            of `db_transaction`.
+        using: The database alias to use for the transaction.
         post_process: An optional callback to run after the function completes. If
             transactions are enabled, this will be scheduled to run after the
             transaction commits, and will receive the function's result as an argument.
@@ -124,7 +122,7 @@ def service_object(
                 call_signature.bind(*args, **kwargs),
             )
 
-            if db_transaction or using != DEFAULT_DB_ALIAS:
+            if db_transaction:
                 with transaction.atomic(using=using):
                     result = inner(*bound_arguments.args, **bound_arguments.kwargs)
                     if post_process is not None:
