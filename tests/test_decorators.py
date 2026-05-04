@@ -111,7 +111,7 @@ def test_service_alias_uses_transaction_and_runs_post_process_on_commit(monkeypa
         on_commit,
     )
 
-    @service(using="analytics", post_process=processed.append)
+    @service(using="analytics", db_transaction=True, post_process=processed.append)
     def build(data: CreateInput) -> str:
         return data.name
 

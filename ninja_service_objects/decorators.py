@@ -73,7 +73,7 @@ def _validate_bound_arguments(
 def service_object(
     func: FuncT,
     *,
-    db_transaction: bool = True,
+    db_transaction: bool = False,
     using: str = DEFAULT_DB_ALIAS,
     post_process: PostProcess | None = None,
 ) -> FuncT: ...
@@ -92,7 +92,7 @@ def service_object(
 def service_object(
     func: FuncT | None = None,
     *,
-    db_transaction: bool = False,
+    db_transaction: bool = True,
     using: str = DEFAULT_DB_ALIAS,
     post_process: PostProcess | None = None,
 ) -> FuncT | Callable[[FuncT], FuncT]:
@@ -102,6 +102,16 @@ def service_object(
     Any argument annotated with a Pydantic BaseModel subclass is validated before
     the wrapped function runs. When transactions are enabled, post-process hooks
     are scheduled with ``transaction.on_commit`` and receive the function result.
+
+    Args:
+        func: The function to decorate. Optional when using as a decorator factory.
+        db_transaction: Whether to wrap the function in a database transaction.
+        using: The database alias to use for the transaction. When set
+            to a non-default alias, transactions will be enabled regardless of the value
+            of `db_transaction`.
+        post_process: An optional callback to run after the function completes. If
+            transactions are enabled, this will be scheduled to run after the
+            transaction commits, and will receive the function's result as an argument.
     """
 
     def decorator(inner: FuncT) -> FuncT:
@@ -114,7 +124,7 @@ def service_object(
                 call_signature.bind(*args, **kwargs),
             )
 
-            if db_transaction:
+            if db_transaction or using != DEFAULT_DB_ALIAS:
                 with transaction.atomic(using=using):
                     result = inner(*bound_arguments.args, **bound_arguments.kwargs)
                     if post_process is not None:
